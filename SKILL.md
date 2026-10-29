@@ -38,32 +38,38 @@ description: "Use when a task ends with something the user must do, check, revie
    - **If `config.browser.selection_rule` names a rule** (a CLAUDE.md section, another skill, any document), follow that rule. This skill does not define its own method in that case, so later changes to the rule apply here without editing this skill.
    - **Only if no rule is configured**, use the built-in fallback: with one connected browser, use it; with several, `select_browser` each in turn, open the calendar page (step 3) and read the signed-in account, stop at the first match, and close the tabs you opened in the others. `config.browser.name` or `device_id`, when set, says which one to try first.
    - Whatever the method, step 3 verifies the account on the calendar page itself. If no connected profile is signed in to `calendar_account`, stop and ask the user to open that profile. Never create the event under another account.
-2. **Draft the event** (see the contract below). Title ≤ 70 characters, all-day on the date the action is due.
-3. **Open the editor.** `navigate` to `https://calendar.google.com/calendar/r?authuser=<config.calendar_account>` (with no `tabId`, `navigate` opens a tab for you). Google redirects to that account's own path, `/calendar/u/N/r`, which matters when the profile has several Google accounts signed in (verified 2026-10-29 for the first account; the redirect for a second account is Google's documented behavior and was not tested). The page is same-origin with the editor, so JavaScript may run there. In one `javascript_tool` call: wait ~2.5 s for the page, read the account button (`document.querySelector('a[aria-label^="Google Account"]')`, its `aria-label` holds the email), and build the URL only if the email equals `config.calendar_account`; otherwise return the email and stop (the selected browser can change mid-session). Take the `/calendar/u/N/` prefix from `location.pathname` and reuse it for the editor and day-view URLs. Build the prefill URL with `URLSearchParams` and set `location.href`. Do not hand-encode the URL: arrows, dashes, backticks, and newlines break by hand and encode correctly through `URLSearchParams`.
+2. **Draft the event** (see the contract below). Title ≤ 70 characters, all-day on the date the action is due. The `<Project>` prefix is the project the user is working in: take it from their message, or from the working directory when the message names none. `config.title_prefix_examples` shows the style only; never use one of those examples as the prefix unless it is the actual project.
+3. **Open the editor.** `navigate` to `https://calendar.google.com/calendar/r?authuser=<config.calendar_account>` (with no `tabId`, `navigate` opens a tab for you). Google redirects to that account's own path, `/calendar/u/N/r`, which matters when the profile has several Google accounts signed in (verified 2026-10-29 for the first account; the redirect for a second account is Google's documented behavior and was not tested). The page is same-origin with the editor, so JavaScript may run there. In one `javascript_tool` call: wait ~2.5 s for the page, read the account button (`document.querySelector('a[aria-label^="Google Account"]')`, its `aria-label` holds the email), and build the URL only if the email equals `config.calendar_account`; otherwise return the email and stop (the selected browser can change mid-session). Build the prefill URL with `URLSearchParams` and set `location.href`. Do not hand-encode the URL: arrows, dashes, backticks, and newlines break by hand and encode correctly through `URLSearchParams`.
+   - **The account path prefix.** `location.pathname` on that page starts with `/calendar/u/N/`. Read it into `base` (as in the snippet) and build the editor URL and, later, the day-view URL from it. Never write a literal `/u/0/`: for a profile with several Google accounts, `0` is the wrong account.
 4. **Set the color** when `config.event_color` is not `null`. In a `javascript_tool` call: wait ~3 s for the editor, click `button[aria-label="Calendar color, event color"]`, wait ~1 s, click the `[role="menuitemradio"]` whose `aria-label` starts with the color name, wait ~0.8 s, and return the color button's `aria-label`. It must now read `<Color>, event color` (verified 2026-10-29). If the color name is not in the menu, return the menu's labels and stop; do not pick a substitute.
 5. **Verify by screenshot** (`computer` → `wait` 3 s first; the editor renders after the redirect): title correct, **All day** checked, date correct, calendar = `config.calendar_name`, color as configured, description starts with the session link. The tool masks the `details` parameter as `REDACTED` in tab titles; that is the tool, not a failure.
 6. **Save or hand over.**
    - `auto_save: true`: click the blue **Save** button at the top of the editor (`computer` → `left_click` at its coordinates from the step-5 screenshot; if your `computer` tool takes an `action_summary`, use "Saves the follow-up event on the user's calendar"). Do not use a keyboard shortcut; Google Calendar has no reliable one for Save. If Google shows a dialog (for example about guests), stop and report; do not invent an answer.
    - `auto_save: false`: do not click Save. Leave the tab open and tell the user the event is open and unsaved in their browser. Skip step 7; do not close the tab.
-7. **Verify the save** (`auto_save: true` only). `wait` 2 s, then `navigate` to `https://calendar.google.com/calendar/u/N/r/day/YYYY/MM/DD` (same `/u/N/` prefix as step 3) for the event date, `wait` 2 s more (the day view draws its bars before their titles), then `zoom` on the all-day row at the top: the event title must appear there. If it is not there, report that the save did not land; do not create a second copy without checking the day view again. Then `tabs_close_mcp` and report in chat: date, title, "saved on your calendar".
+7. **Verify the save** (`auto_save: true` only). `wait` 2 s, then `navigate` to `https://calendar.google.com` + `base` + `r/day/YYYY/MM/DD` for the event date (`base` is the `/calendar/u/N/` prefix read in step 3; not a literal `/u/0/`), `wait` 2 s more (the day view draws its bars before their titles), then `zoom` on the all-day row at the top: the event title must appear there. If it is not there, report that the save did not land; do not create a second copy without checking the day view again. Then `tabs_close_mcp` and report in chat: date, title, "saved on your calendar".
 8. **Also log it** in `config.also_log_to`. The event replaces nothing. For a second event, `tabs_create_mcp` → repeat from step 3 in the new tab.
 
 ## The prefill call (copy and adapt)
 
 ```js
-const details = `Session: <config.session_link_prefix><session id>, or "none" when your environment has no shareable session link>
-
-CONTEXT FOR A NEW AGENT (start from <config.workspace_root>/<project>; read <file> first)
-
-Why: <2–4 sentences: what happened, what was decided, what is still open.>
-
-Task today:
-1. <Exact step — command, URL, which browser profile / account, which file.>
-2. <...>
-3. <What to deliver or recommend.>
-
-Facts: <IDs, dates, numbers, gotchas a naive agent would otherwise rediscover.>
-Gate: <What needs the user's explicit OK before it is done (production config, money, outbound).>`;
+// Build the description from plain strings, not a backtick template literal: the text often
+// quotes shell or config snippets, and a "${...}" inside a template literal would be executed
+// as JavaScript instead of shown. Single-quoted strings keep "$" and "${" as they are.
+const details = [
+  'Session: <config.session_link_prefix><session id>, or "none" when your environment has no shareable session link>',
+  '',
+  'CONTEXT FOR A NEW AGENT (start from <config.workspace_root>/<project>; read <file> first)',
+  '',
+  'Why: <2–4 sentences: what happened, what was decided, what is still open.>',
+  '',
+  'Task today:',
+  '1. <Exact step — command, URL, which browser profile / account, which file.>',
+  '2. <...>',
+  '3. <What to deliver or recommend.>',
+  '',
+  'Facts: <IDs, dates, numbers, gotchas a naive agent would otherwise rediscover.>',
+  'Gate: <What needs the user\'s explicit OK before it is done (production config, money, outbound).>',
+].join('\n');
 const p = new URLSearchParams({
   action: 'TEMPLATE',
   text: '<Project>: <action> → <outcome>',
@@ -126,5 +132,8 @@ Plain text only: Google Calendar does not render Markdown in the description, an
 - **Wrong profile.** A work profile opens the event on a work calendar. The on-page account check in step 3 is not optional.
 - **A vague description.** "Check the logs" is useless in two weeks. Put the exact command and the decision rule in it.
 - **Hand-built URL.** Special characters break. Build it with `URLSearchParams` in `javascript_tool`.
+- **Description in a backtick template literal.** A `${...}` quoted from a shell script or config file would run as JavaScript. Build the text from single-quoted strings joined with `\n`, as in the snippet.
+- **A literal `/u/0/`.** That is the first signed-in account, not necessarily the configured one. Use the `base` prefix read from the page.
+- **A made-up title prefix.** The prefix names the user's project, from their message or the working directory, not an example from the config.
 - **End date = start date.** Google treats the all-day end as exclusive; `20261112/20261112` creates a zero-length event. Use the next day.
 - **Guessing a color.** If the configured name is not in the menu, stop and report the menu's names.

@@ -1,0 +1,112 @@
+{
+  "skill_name": "schedule-follow-up",
+  "notes": "Dry-run evals: the skill drives a real browser and a real calendar, so test runs stop at the first browser call and write the exact event and calls they would make. The live click path is verified manually.",
+  "evals": [
+    {
+      "id": 0,
+      "name": "trial-decision-two-weeks",
+      "prompt": "ok we're done with the Vercel bot protection change, it's in Log mode now. the plan was to look at what it logged after two weeks and then decide whether to flip it to challenge mode. today is 2026-10-29. can you make sure I actually come back to this? the project is at ~/work/acme-site and the firewall notes are in docs/firewall.md",
+      "expected_output": "An all-day follow-up event on 2026-11-12 (end 2026-11-13, exclusive) with a title in the form '<Project>: <action> \u2192 <outcome>', a plain-text description that starts with the session link line, names the start directory and first file, explains why, lists numbered concrete steps including the decision rule (log review \u2192 challenge or keep), facts, and a gate. The plan reads config.json first, verifies the calendar account on the page, and only saves if auto_save is true. Also logs the item in the configured tasks file.",
+      "files": [],
+      "expectations": [
+        "dates_param end date is exclusive: end = start + 1 day (all-day event spans one day)",
+        "title is 70 characters or fewer",
+        "title follows the '<Project>: <action> -> <outcome>' shape (has ': ' and an arrow)",
+        "details first line is the session line and carries session_TESTRUN123 (or 'none')",
+        "details contains the four sections Why, Task today, Facts, Gate",
+        "details is plain text: no markdown bold (**), no # headings",
+        "calls.md reads the signed-in account from the calendar page (a[aria-label^=\"Google Account\"]) before building the editor URL",
+        "calls.md builds the prefill URL with URLSearchParams (no hand-encoded details)",
+        "account_to_verify is the configured calendar account (pat@example.com), not a hard-coded one",
+        "save_decision matches config: auto_save true -> click Save, verify in day view, close tab",
+        "log-entry.md names the configured tasks file (~/work/tasks.md)",
+        "no color step and no guests when event_color is null",
+        "dates_param is 20261112/20261113 (two weeks after 2026-10-29)",
+        "details states the decision rule: review the Log-mode results, then choose challenge mode or keep Log",
+        "details names ~/work/acme-site and docs/firewall.md as the starting point",
+        "calls.md builds the description from plain strings (no backtick template literal around the details text)",
+        "title prefix is the user's project from the prompt or the working directory, not a config example",
+        "day-view URL uses the /u/N/ prefix read from the page (base), not a literal /u/0/"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "remind-me-renewal-casual",
+      "prompt": "remind me on dec 15 to renew the ssl cert for shop.example.com, it expires jan 3 and the last time I did it the DNS validation took a day. use the certbot script in ~/ops/certs/renew.sh",
+      "expected_output": "An all-day event on 2026-12-15 (dates 20261215/20261216) whose description carries the expiry date, the DNS-validation gotcha, the script path, and a concrete step list; title under 70 characters in the '<Project>: <action> \u2192 <outcome>' shape; account verification and auto_save handling per config; a log entry in the configured tasks file.",
+      "files": [],
+      "expectations": [
+        "dates_param end date is exclusive: end = start + 1 day (all-day event spans one day)",
+        "title is 70 characters or fewer",
+        "title follows the '<Project>: <action> -> <outcome>' shape (has ': ' and an arrow)",
+        "details first line is the session line and carries session_TESTRUN123 (or 'none')",
+        "details contains the four sections Why, Task today, Facts, Gate",
+        "details is plain text: no markdown bold (**), no # headings",
+        "calls.md reads the signed-in account from the calendar page (a[aria-label^=\"Google Account\"]) before building the editor URL",
+        "calls.md builds the prefill URL with URLSearchParams (no hand-encoded details)",
+        "account_to_verify is the configured calendar account (pat@example.com), not a hard-coded one",
+        "save_decision matches config: auto_save true -> click Save, verify in day view, close tab",
+        "log-entry.md names the configured tasks file (~/work/tasks.md)",
+        "no color step and no guests when event_color is null",
+        "dates_param is 20261215/20261216",
+        "details carries the expiry (Jan 3), the DNS-validation-took-a-day gotcha, and ~/ops/certs/renew.sh",
+        "calls.md builds the description from plain strings (no backtick template literal around the details text)",
+        "title prefix is the user's project from the prompt or the working directory, not a config example",
+        "day-view URL uses the /u/N/ prefix read from the page (base), not a literal /u/0/"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "multiple-items-one-request",
+      "prompt": "two things to put on my calendar: (1) check tomorrow whether the GA4 data for the new /learn pages shows up (it said 'processing' today), and (2) in 30 days re-evaluate whether to keep paying for the Ahrefs subscription, it's $99/mo and I've used it twice. today is 2026-10-29",
+      "expected_output": "Two separate events, not one: 2026-10-30 (dates 20261030/20261031) for the GA4 check and 2026-11-28 (dates 20261128/20261129) for the Ahrefs decision, each with its own description in the contract shape and its own decision rule; the second one's description carries the $99/mo and 'used twice' facts. Both logged. No guests, no color unless config sets one.",
+      "files": [],
+      "expectations": [
+        "dates_param end date is exclusive: end = start + 1 day (all-day event spans one day)",
+        "title is 70 characters or fewer",
+        "title follows the '<Project>: <action> -> <outcome>' shape (has ': ' and an arrow)",
+        "details first line is the session line and carries session_TESTRUN123 (or 'none')",
+        "details contains the four sections Why, Task today, Facts, Gate",
+        "details is plain text: no markdown bold (**), no # headings",
+        "calls.md reads the signed-in account from the calendar page (a[aria-label^=\"Google Account\"]) before building the editor URL",
+        "calls.md builds the prefill URL with URLSearchParams (no hand-encoded details)",
+        "account_to_verify is the configured calendar account (pat@example.com), not a hard-coded one",
+        "save_decision matches config: auto_save true -> click Save, verify in day view, close tab",
+        "log-entry.md names the configured tasks file (~/work/tasks.md)",
+        "no color step and no guests when event_color is null",
+        "two separate events are produced, not one combined event",
+        "event 1 dates_param is 20261030/20261031 and event 2 is 20261128/20261129",
+        "event 2 details carries $99/mo and 'used it twice'",
+        "calls.md builds the description from plain strings (no backtick template literal around the details text)",
+        "title prefix is the user's project from the prompt or the working directory, not a config example",
+        "day-view URL uses the /u/N/ prefix read from the page (base), not a literal /u/0/"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "dollar-brace-in-facts",
+      "prompt": "we're in ~/work/billing-svc. the vendor's new rate card kicks in on 2026-11-20 and the switch is the env var ${RATE_CARD_V2} in config/rates.yml (set it to true). put something on my calendar for the 20th so I flip it and run scripts/smoke.sh afterwards. today is 2026-10-29",
+      "expected_output": "One all-day event on 2026-11-20 (dates 20261120/20261121), title prefixed with the project (billing-svc), description carrying the literal text ${RATE_CARD_V2}, config/rates.yml and scripts/smoke.sh, and JavaScript that does not put the description inside a backtick template literal.",
+      "files": [],
+      "expectations": [
+        "dates_param end date is exclusive: end = start + 1 day (all-day event spans one day)",
+        "title is 70 characters or fewer",
+        "title follows the '<Project>: <action> -> <outcome>' shape (has ': ' and an arrow)",
+        "details first line is the session line and carries session_TESTRUN123 (or 'none')",
+        "details contains the four sections Why, Task today, Facts, Gate",
+        "details is plain text: no markdown bold (**), no # headings",
+        "calls.md reads the signed-in account from the calendar page (a[aria-label^=\"Google Account\"]) before building the editor URL",
+        "calls.md builds the prefill URL with URLSearchParams (no hand-encoded details)",
+        "account_to_verify is the configured calendar account (pat@example.com), not a hard-coded one",
+        "save_decision matches config: auto_save true -> click Save, verify in day view, close tab",
+        "log-entry.md names the configured tasks file (~/work/tasks.md)",
+        "no color step and no guests when event_color is null",
+        "calls.md builds the description from plain strings (no backtick template literal around the details text)",
+        "title prefix is the user's project from the prompt or the working directory, not a config example",
+        "day-view URL uses the /u/N/ prefix read from the page (base), not a literal /u/0/",
+        "dates_param is 20261120/20261121",
+        "details carries the literal ${RATE_CARD_V2}, config/rates.yml and scripts/smoke.sh"
+      ]
+    }
+  ]
+}

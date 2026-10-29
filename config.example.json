@@ -1,0 +1,19 @@
+{
+  "calendar_account": "you@example.com",
+  "calendar_name": "Your Name",
+  "event_color": null,
+  "auto_save": false,
+  "auto_save_granted": "",
+  "auto_save_note": "Set auto_save to true only after the user has said so, and record the date and their words in auto_save_granted, e.g. \"2026-01-15: just save them\".",
+  "browser": {
+    "selection_rule": "",
+    "name": "",
+    "device_id": "",
+    "note": "All optional. selection_rule: where your own browser-profile selection rule lives (e.g. a CLAUDE.md section); when set, the skill follows it. name / device_id: hints for the built-in fallback (display name from list_connected_browsers, or its deviceId) for the profile signed in to calendar_account. Leave all empty with one browser profile."
+  },
+  "title_prefix_examples": ["Project A", "Project B"],
+  "workspace_root": "~/your-workspace",
+  "also_log_to": "path/to/tasks.md",
+  "session_link_prefix": "https://claude.ai/code/",
+  "session_link_note": "Prefix for the session link at the top of each event description. Leave empty if your sessions have no shareable link; the description then starts with \"Session: none\"."
+}
